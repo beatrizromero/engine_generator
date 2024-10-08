@@ -102,4 +102,4 @@ jobs:
         git config --global user.name "beatrizromero"
         git add output.txt
         git commit -m "Generated output.txt from another repository" || echo "No changes to commit"
-        git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/beatrizromero/btptools.git HEAD:main
+        git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/beatrizromero/engine_generator.git HEAD:main
