@@ -1,0 +1,1735 @@
+
+File: Table.controller.js
+sap.ui.define(
+  [
+    "apptorparameters/controller/BaseController",
+    "apptorparameters/utils/Constants",
+    "apptorparameters/utils/DataManager",
+    "apptorparameters/utils/Services",
+    "apptorparameters/utils/Utils",
+    "sap/m/MessageBox"
+  ],
+  /**
+   * @param {object} BaseController - SAP UI5 base controller class
+   * @param {object} Constants - Reference to utils/Constants.js file
+   * @param {object} DataManager - Reference to utils/DataManager.js file
+   * @param {object} Services - Reference to utils/Services.js file
+   * @param {object} Utils - Reference to utils/Utils.js file
+   * @param {typeof sap.m.MessageBox} MessageBox - Dialogs for messages in the application
+   * @returns {object} Extension of BaseController object
+   */
+  function (
+    BaseController,
+    Constants,
+    DataManager,
+    Services,
+    Utils,
+    MessageBox
+  ) {
+    "use strict";
+    return BaseController.extend("apptorparameters.controller.Table", {
+      utils: Utils,
+
+      /** Lifecycle hook for initialization */
+      onInit: function () {
+        this.isEditUser();
+        this.getRouter()
+          .getRoute(Constants.route.TABLE_ROUTE)
+          .attachMatched(this.onMatchedRouteDefault, this);
+      },
+
+      /** Handler for when the route is matched */
+      onMatchedRouteDefault: function () {
+        // For creation of the Message Channel for Errors we pass the context and the Id of the Message Popover
+        Utils.createPopover(this, Constants.id.TABLEVIEW_MESSAGEPOPOVER_ID);
+        let TableViewTable = this.getView().byId(Constants.id.TABLEVIEW_ID);
+        TableViewTable.clearSelection();
+        this.checkSearchTable();
+      },
+
+      /** Function that checks if there are filter parameters in the filter bar entries to call the service that returns the list of parameters. */
+      checkSearchTable: function () {
+        let aFilters = DataManager.getParameterFilters();
+        let oDataModel = this.getView().getModel(Constants.model.LOCAL_MODEL);
+        let aTable =
+          oDataModel.getProperty(Constants.property.PARAMETERTABLE_PROPERTY) ||
+          [];
+        if (!aFilters.length && !aTable.length) {
+          return;
+        }
+        this.refreshTable();
+      },
+
+      /** Function to update parameter list data */
+      refreshTable: function () {
+        let aFilters = DataManager.getParameterFilters();
+        let localModel = this.getView().getModel(Constants.model.LOCAL_MODEL);
+        let TableViewTable = this.getView().byId(Constants.id.TABLEVIEW_ID);
+        TableViewTable.setBusy(true);
+        Services.readTorParameterTotalView(aFilters)
+          .then((oData) => {
+            localModel.setProperty(
+              Constants.property.PARAMETERTABLE_PROPERTY,
+              oData
+            );
+          })
+          .catch((oError) => {
+            if (oError?.results && oError.results.length == 0) {
+              let errorMessage = this.getView()
+                .getModel(Constants.model.I18N_MODEL)
+                .getResourceBundle()
+                .getText("service.error.nodata");
+              localModel.setProperty(
+                Constants.property.PARAMETERTABLE_PROPERTY,
+                []
+              );
+              this.getMessageModel().setProperty("/", [
+                Utils.returnMessage(this, Constants.state.ERROR, errorMessage)
+              ]);
+              this.openPopOverButton();
+            }
+          })
+          .finally(() => {
+            TableViewTable.setBusy(false);
+          });
+      },
+
+      /** Function for event create press button */
+      onPressCreateButton: function () {
+        this.getMessageModel().setProperty("/", []);
+        this.getMessageModel().refresh();
+        this.getView()
+          .getModel(Constants.model.LOCAL_MODEL)
+          .setProperty(Constants.property.CREATE_BINDING, [
+            { descriptions: [{}] }
+          ]);
+        this.getOwnerComponent()
+          .getRouter()
+          .navTo(Constants.route.CREATE_ROUTE);
+      },
+
+      /** Function for event edit press button */
+      onPressEditButton: function () {
+        let localModel = this.getView().getModel(Constants.model.LOCAL_MODEL);
+        let TableViewTable = this.getView().byId(Constants.id.TABLEVIEW_ID);
+        let aIndices = TableViewTable.getSelectedIndices();
+        let aSelectedItems = [];
+        if (aIndices.length < 1) {
+          let errorMessage = this.getView()
+            .getModel(Constants.model.I18N_MODEL)
+            .getResourceBundle()
+            .getText("service.error.edit.norecords");
+          this.getMessageModel().setProperty("/", [
+            Utils.returnMessage(this, Constants.state.INFORMATION, errorMessage)
+          ]);
+          this.openPopOverButton();
+          return;
+        }
+        aIndices.forEach((value) => {
+          aSelectedItems.push(
+            TableViewTable.getContextByIndex(value).getObject()
+          );
+        });
+        localModel.setProperty(
+          Constants.property.EDIT_BINDING,
+          JSON.parse(JSON.stringify(aSelectedItems))
+        );
+        this.getOwnerComponent().getRouter().navTo(Constants.route.EDIT_ROUTE);
+        this.getMessageModel().setProperty("/", []);
+        this.getMessageModel().refresh();
+      },
+
+      /** Function for open popover messages */
+      openPopOverButton: function () {
+        Utils.getPopover().openBy(
+          this.getView().byId(Constants.id.TABLEVIEW_MESSAGEPOPOVER_ID)
+        );
+      },
+
+      /** Function for event delete press button. */
+      onPressDeleteButton: function () {
+        this.getMessageModel().setProperty("/", []);
+        this.getMessageModel().refresh();
+        let TableViewTable = this.getView().byId(Constants.id.TABLEVIEW_ID);
+        if (TableViewTable.getSelectedIndices().length < 1) {
+          let errorMessage = this.getView()
+            .getModel(Constants.model.I18N_MODEL)
+            .getResourceBundle()
+            .getText("service.error.delete.norecords");
+          this.getMessageModel().setProperty("/", [
+            Utils.returnMessage(this, Constants.state.INFORMATION, errorMessage)
+          ]);
+          this.openPopOverButton();
+          return;
+        }
+        TableViewTable.setBusy(true);
+        this._validateDeleteAction().then(() => {
+          this._deleteTorParameterTotalView();
+        });
+      },
+
+      onValueHelpRequestParameterType: function (oEvent) {
+        let sID = oEvent.getSource();
+        Utils._getCreateFragmentValueHelp
+          .bind(this)(sID, "ParameterType")
+          .open();
+        Services.readTorParameterTotalView([]).then((oData) => {
+          let sFilterLang;
+          let sLangValue = this.getView()
+            .getModel(Constants.model.LOCAL_MODEL)
+            .getProperty(
+              `${Constants.property.MAIN_BINDING}${Constants.property.LANGUAGE_CODE}`
+            );
+          if (sLangValue) {
+            sFilterLang = sLangValue;
+          } else {
+            let sLanguage = sap.ui.getCore().getConfiguration().getLanguage();
+            sFilterLang = sLanguage.substring(0, 2).toUpperCase();
+          }
+          let oResults = Object.values(
+            oData.reduce((r, o) => {
+              if (sFilterLang === o.lang) {
+                r[o.param] = o;
+              }
+              return r;
+            }, {})
+          );
+          this.getView()
+            .getModel(Constants.model.LOCAL_MODEL)
+            .setProperty(Constants.property.PARAMETERTYPE_PROPERTY, oResults);
+          let oSelect = sap.ui.getCore().byId(Constants.id.PARAMETER_TYPE_ID); //get the reference to your Select control
+          let oBinding = oSelect.getBinding(Constants.parametersOEvent.ITEMS);
+          let aFilters = [];
+          aFilters.push(
+            new sap.ui.model.Filter(
+              Constants.filterKeyPath.LANG,
+              sap.ui.model.FilterOperator.EQ,
+              sFilterLang.toUpperCase()
+            )
+          );
+          oBinding.filter(aFilters); //apply the filter
+        });
+      },
+
+      onExit: function () {
+        this.destroy();
+        Utils.setPopover(undefined);
+      },
+
+      /**
+       * Function to validate delete action.
+       * @returns {object} Return a promise that check if the deletion has been confirmed or not with boolean value
+       */
+      _validateDeleteAction: function () {
+        return new Promise((resolve, reject) => {
+          MessageBox.confirm(
+            this.getView()
+              .getModel(Constants.model.I18N_MODEL)
+              .getResourceBundle()
+              .getText("service.error.delete.confirmation"),
+            {
+              actions: [MessageBox.Action.OK, MessageBox.Action.CANCEL],
+              emphasizedAction: MessageBox.Action.OK,
+              onClose: function (sAction) {
+                if (sAction == "OK") {
+                  resolve(sAction);
+                } else {
+                  reject(sAction);
+                }
+              }
+            }
+          );
+        });
+      },
+
+      /**
+       * Function to delete TOR Parameter.
+       */
+      _deleteTorParameterTotalView: function () {
+        let TableViewTable = this.getView().byId(Constants.id.TABLEVIEW_ID);
+        let aItems = TableViewTable.getSelectedIndices();
+        let aDeleteTorParameterView = DataManager.deleteTorParameterDescView(
+          aItems,
+          TableViewTable
+        );
+        let pDleteTorParameterView = [];
+        this.iCountDelete = 0;
+        for (let row of aDeleteTorParameterView) {
+          let getReadTorParameterDescViewFilters =
+            DataManager.getReadTorParameterDescViewFilters(row);
+          Services.readFilterTorParameterDescView(
+            getReadTorParameterDescViewFilters
+          ).then(
+            function (oData) {
+              this.iCountDelete++;
+              if (oData?.results && oData.results.length === 1) {
+                pDleteTorParameterView.push(
+                  Services.deleteTorParameterView(row)
+                );
+              }
+              pDleteTorParameterView.push(
+                Services.deleteTorParameterDescView(row)
+              );
+              if (this.iCountDelete === aDeleteTorParameterView.length) {
+                Promise.all(pDleteTorParameterView)
+                  .then(() => {
+                    this.refreshTable();
+                    let successMessage = this.getView()
+                      .getModel(Constants.model.I18N_MODEL)
+                      .getResourceBundle()
+                      .getText("service.success.delete");
+                    this.getMessageModel()
+                      .getProperty("/")
+                      .push(
+                        Utils.returnMessage(
+                          this,
+                          Constants.state.SUCCESS,
+                          successMessage
+                        )
+                      );
+                    this.getMessageModel().refresh();
+                    this.openPopOverButton();
+                  })
+                  .catch((e) => {
+                    if (e?.statusText) {
+                      this.getMessageModel()
+                        .getProperty("/")
+                        .push(
+                          Utils.returnMessage(
+                            this,
+                            Constants.state.ERROR,
+                            e.statusText
+                          )
+                        );
+                      this.getMessageModel().refresh();
+                      this.openPopOverButton();
+                    }
+                  })
+                  .finally(() => {
+                    TableViewTable.setBusy(false);
+                  });
+              }
+            }.bind(this)
+          );
+        }
+      }
+    });
+  }
+);
+
+
+File: CreateView.controller.js
+sap.ui.define(
+  [
+    "apptorparameters/controller/BaseController", // Custom router for navigation
+    "apptorparameters/utils/Constants", // Constants used across the application
+    "apptorparameters/utils/DataManager", // DataManager for handling data operations
+    "apptorparameters/utils/Services", // Services for backend communication
+    "apptorparameters/utils/Utils" // Utils for various utility functions
+  ],
+  /**
+   * Main function of the module.
+   * @param {object} BaseController - SAP UI5 base controller class
+   * @param {object} Constants - Reference to utils/Constants.js file
+   * @param {object} DataManager - Reference to utils/DataManager.js file
+   * @param {object} Services - Reference to utils/Services.js file
+   * @param {object} Utils - Reference to utils/Utils.js file
+   * @returns {object} Extension of BaseController object
+   */
+  function (BaseController, Constants, DataManager, Services, Utils) {
+    "use strict";
+    // Extend the custom Router for this specific controller
+    return BaseController.extend("apptorparameters.controller.CreateView", {
+      /** Lifecycle hook for initialization */
+      onInit: function () {
+        if (
+          this.getOwnerComponent()
+            .getModel(Constants.model.ROLES_MODEL)
+            .getProperty(Constants.property.IS_EDIT_USER) === undefined
+        ) {
+          this.isEditUser();
+        }
+        // Attach a route matched event for a specific route
+        this.getRouter()
+          .getRoute(Constants.route.CREATE_ROUTE)
+          .attachMatched(this.onMatchedRouteDefault, this);
+      },
+
+      /** Handler for when the route is matched */
+      onMatchedRouteDefault: function () {
+        // Create a popover UI component
+        Utils.createPopover(this, Constants.id.CREATEVIEW_MESSAGEPOPOVER_ID);
+      },
+
+      /** Function to add a new row in the UI */
+      onPressAddRow: function () {
+        // Get the local model and the binding path for creating data
+        let localModel = this.getView().getModel(Constants.model.LOCAL_MODEL);
+        let aCreateBinding = localModel.getProperty(
+          Constants.property.CREATE_BINDING
+        );
+        // Add a new empty object (row) to the data binding
+        aCreateBinding.push({ descriptions: [{}] });
+        // Refresh the model to update the UI
+        localModel.refresh();
+      },
+
+      /**
+       * Function to handle the 'Create' button press
+       * @param {object} oEvent - This object contains relevant information about the event that ocurred, such as the event type, the control that triggered the event, and any additional data associated
+       */
+      onPressCreateButton: function (oEvent) {
+        // Retrieve various models and data required for creation
+        let localModel = this.getView()
+          .getModel(Constants.model.LOCAL_MODEL)
+          .getProperty(Constants.property.CREATE_BINDING);
+        let breakpoint;
+        this.getView()
+          .getModel(Constants.model.LOCAL_MODEL)
+          .setProperty(Constants.property.CREATE_ERROR_MESSAGE, false);
+        // Iterate over the model data to check for missing fields
+        localModel.forEach((value) => {
+          if (
+            !value.param ||
+            !value.param_value ||
+            !this._checkDescriptions(value.descriptions)
+          ) {
+            breakpoint = true;
+          }
+        });
+        // If any field is missing, show an error message and stop the process
+        if (breakpoint) {
+          let successMessage = this.getView()
+            .getModel(Constants.model.I18N_MODEL)
+            .getResourceBundle()
+            .getText("service.error.create.missingData");
+          this.getMessageModel().setProperty("/", [
+            Utils.returnMessage(
+              this,
+              Constants.state.INFORMATION,
+              successMessage
+            )
+          ]);
+          this._openPopOverButton();
+          return;
+        }
+        // If all fields are filled, proceed with creation
+        oEvent.getSource().setBusy(true);
+        this._createTorParameterTotalView();
+      },
+
+      /**
+       * Execute when press description button
+       * @param {object} oEvent - This object contains relevant information about the event that ocurred, such as the event type, the control that triggered the event, and any additional data associated
+       */
+      onBtnPressDescription: function (oEvent) {
+        let oSelectedDescription = oEvent
+          .getSource()
+          .getBindingContext(Constants.model.LOCAL_MODEL)
+          .getObject();
+        this.getView()
+          .getModel(Constants.model.LOCAL_MODEL)
+          .setProperty(
+            Constants.property.SELECTEDDESCRIPTION_PROPERTY,
+            oSelectedDescription
+          );
+        this._oDescriptionData = sap.ui.xmlfragment(
+          "apptorparameters.view.fragment.DescriptionDataDialog",
+          this
+        );
+        this.getView().addDependent(this._oDescriptionData);
+        this._oDescriptionData.attachAfterClose(
+          null,
+          function () {
+            this._oDescriptionData.destroy();
+            this._oDescriptionData = undefined;
+            delete this._oDescriptionData;
+          },
+          this
+        );
+        this._oDescriptionData.open();
+      },
+
+      /**
+       * used to add one more row to the descriptions dialog when creating parameters
+       */
+      onPressAddRowDescriptions: function () {
+        let oDataModel = this.getView().getModel(Constants.model.LOCAL_MODEL);
+        let aCreateBinding = oDataModel.getProperty(
+          Constants.property.SELECTEDDESCRIPTION_DESCRIPTIONS_PROPERTY
+        );
+        aCreateBinding.push({});
+        oDataModel.refresh();
+      },
+
+      /**
+       * It is executed when you press the confirmation button in the dialog and calls the function "_onCloseDataOrderDialog()"
+       */
+      onBtnPressConfirmOrderData: function () {
+        this._onCloseDataOrderDialog();
+      },
+
+      /**
+       * It is executed when you press the cancel button in the dialog and calls the function "_onCloseDataOrderDialog()"
+       */
+      onBtnPressCancelOrderData: function () {
+        this._onCloseDataOrderDialog();
+      },
+
+      /**
+       * Save id from selected elements  material table
+       * @param {object} oEvent - This object contains relevant information about the event that ocurred, such as the event type, the control that triggered the event, and any additional data associated
+       */
+      onSelectedParentRowDescription: function (oEvent) {
+        let aSelectedIndices = oEvent.getSource().getSelectedIndices();
+        let oModel = this.getView().getModel(Constants.model.LOCAL_MODEL);
+        let aSelectedItems = [];
+        aSelectedIndices.forEach((iIndex) => {
+          aSelectedItems.push(iIndex);
+        });
+        oModel.setProperty(
+          Constants.property.SELECTEDPARENTROWDESCRIPTION,
+          aSelectedItems
+        );
+      },
+
+      /** Delete elements from material table */
+      onPressDeleteDescriptionsButton: function () {
+        let oModel = this.getView().getModel(Constants.model.LOCAL_MODEL);
+        let aMaterialTable = oModel.getProperty(
+          Constants.property.SELECTEDDESCRIPTION_DESCRIPTIONS_PROPERTY
+        );
+        let aIndices = oModel.getProperty(
+          Constants.property.SELECTEDPARENTROWDESCRIPTION
+        );
+        aMaterialTable = aMaterialTable.filter((oElement, iIndex) => {
+          return !aIndices.includes(iIndex);
+        });
+        oModel.setProperty(
+          Constants.property.SELECTEDDESCRIPTION_DESCRIPTIONS_PROPERTY,
+          aMaterialTable
+        );
+        oModel.setProperty(Constants.property.SELECTEDPARENTROWDESCRIPTION, []);
+      },
+
+      /**
+       * Save id from selected elements  material table
+       * @param {object} oEvent - This object contains relevant information about the event that ocurred, such as the event type, the control that triggered the event, and any additional data associated
+       */
+      onSelectedParentRow: function (oEvent) {
+        let aSelectedIndices = oEvent.getSource().getSelectedIndices();
+        let oModel = this.getView().getModel(Constants.model.LOCAL_MODEL);
+        let aSelectedItems = [];
+        aSelectedIndices.forEach((iIndex) => {
+          aSelectedItems.push(iIndex);
+        });
+        oModel.setProperty(
+          Constants.property.SELECTEDPARENTROW,
+          aSelectedItems
+        );
+      },
+
+      /** Delete elements from material table*/
+      onPressDeleteButton: function () {
+        let oModel = this.getView().getModel(Constants.model.LOCAL_MODEL);
+        let aMaterialTable = oModel.getProperty(
+          Constants.property.CREATE_BINDING
+        );
+        let aIndices = oModel.getProperty(Constants.property.SELECTEDPARENTROW);
+        aMaterialTable = aMaterialTable.filter((oElement, iIndex) => {
+          return !aIndices.includes(iIndex);
+        });
+        oModel.setProperty(Constants.property.CREATE_BINDING, aMaterialTable);
+        oModel.setProperty(Constants.property.SELECTEDPARENTROW, []);
+      },
+
+      /** Navigation button press handler */
+      onNavButtonPress: function () {
+        // Navigate to the table route
+        this.getRouter().navTo(Constants.route.TABLE_ROUTE);
+      },
+
+      /**
+       * close the descriptions dialog
+       */
+      _onCloseDataOrderDialog: function () {
+        this._oDescriptionData.close();
+      },
+
+      /**
+       * This function is used to ensure that all descriptions in the array meet certain specific criteria
+       * @param {Array} aDescriptions - Array descriptions to checking
+       * @returns {boolean} Boolean that returns true if the descriptive check is successful and false if the descriptive check is incorrect
+       */
+      _checkDescriptions: function (aDescriptions) {
+        for (const element of aDescriptions) {
+          if (element.param_value_desc && !element.lang) {
+            return false;
+          }
+        }
+        return true;
+      },
+
+      /** Function to open the Popover UI component */
+      _openPopOverButton: function () {
+        // Get the popover and open it by the specified button
+        Utils.getPopover().openBy(
+          this.getView().byId(Constants.id.CREATEVIEW_MESSAGEPOPOVER_ID)
+        );
+      },
+
+      /**
+       * Function to handle creation of TorParameterTotalView
+       */
+      _createTorParameterTotalView: function () {
+        // Create and handle promises for asynchronous operations
+        let aCreateTorParameterView = DataManager.createTorParameterView();
+        let aCreateTorParameterDescView =
+          DataManager.createTorParameterDescView();
+        // Process each row in the Tor Parameter View
+        this._checkingExistParam(
+          aCreateTorParameterView,
+          aCreateTorParameterDescView
+        );
+      },
+
+      /**
+       * Function to checking if param exist
+       * @param {Array} aCreateTorParameterView - Array of params
+       * @param {Array} aCreateTorParameterDescView - Array of params descriptions
+       */
+      _checkingExistParam: function (
+        aCreateTorParameterView,
+        aCreateTorParameterDescView
+      ) {
+        let iCountParams = 0;
+        this.pCreateTorParameter = [];
+        for (let row of aCreateTorParameterView) {
+          Services.readTorParameterView(row)
+            .then(
+              function (oData) {
+                iCountParams++;
+                // Create new entries if they don't exist
+                if (oData.statusCode === 404) {
+                  this.pCreateTorParameter.push(
+                    Services.createTorParameterView(row)
+                  );
+                }
+                let aCheckDescr = aCreateTorParameterDescView.filter(
+                  (oCheck) => {
+                    return (
+                      oCheck.param === row.param &&
+                      oCheck.param_value === row.param_value
+                    );
+                  }
+                );
+                if (!aCheckDescr.length) {
+                  let sErrorMessage = this.getView()
+                    .getModel(Constants.model.I18N_MODEL)
+                    .getResourceBundle()
+                    .getText("service.error.create", [oData.param]);
+                  this.getMessageModel()
+                    .getProperty("/")
+                    .push(
+                      Utils.returnMessage(
+                        this,
+                        Constants.state.ERROR,
+                        sErrorMessage
+                      )
+                    );
+                  this.getView()
+                    .getModel(Constants.model.LOCAL_MODEL)
+                    .setProperty(Constants.property.CREATE_ERROR_MESSAGE, true);
+                }
+                if (iCountParams === aCreateTorParameterView.length) {
+                  // Repeat the process for TorParameterDescView
+                  this._checkingExistParamDesc(aCreateTorParameterDescView);
+                }
+              }.bind(this)
+            )
+            .catch(
+              function (e) {
+                // On failure, show an error message
+                let errorMessage = JSON.parse(e.responseText).error.message
+                  .value;
+                this.getMessageModel().setProperty("/", [
+                  Utils.returnMessage(this, Constants.state.ERROR, errorMessage)
+                ]);
+                this.getView().byId("saveButton").setBusy(false);
+                iCountParams++;
+                if (iCountParams === aCreateTorParameterView.length) {
+                  // Repeat the process for TorParameterDescView
+                  this._checkingExistParamDesc(aCreateTorParameterDescView);
+                }
+              }.bind(this)
+            );
+        }
+      },
+
+      /**
+       * Function to checking if param desc exist
+       * @param {Array} aCreateTorParameterDescView - Array of params descriptions
+       */
+      _checkingExistParamDesc: function (aCreateTorParameterDescView) {
+        let iCountParamsDesc = 0;
+        this.aExistParamsDesc = [];
+        for (let row of aCreateTorParameterDescView) {
+          Services.readTorParameterDescView(row)
+            .then(
+              function (oData) {
+                iCountParamsDesc++;
+                // Create new entries if they don't exist
+                if (oData.statusCode === 404) {
+                  this.pCreateTorParameter.push(
+                    Services.createTorParameterDescView(row)
+                  );
+                } else {
+                  let sErrorMessage = this.getView()
+                    .getModel(Constants.model.I18N_MODEL)
+                    .getResourceBundle()
+                    .getText("service.error.create.description", [oData.param]);
+                  this.getMessageModel()
+                    .getProperty("/")
+                    .push(
+                      Utils.returnMessage(
+                        this,
+                        Constants.state.ERROR,
+                        sErrorMessage
+                      )
+                    );
+                  this.getView()
+                    .getModel(Constants.model.LOCAL_MODEL)
+                    .setProperty(Constants.property.CREATE_ERROR_MESSAGE, true);
+                }
+                if (iCountParamsDesc === aCreateTorParameterDescView.length) {
+                  this._promiseAllCreateTorParameter(this.pCreateTorParameter);
+                }
+              }.bind(this)
+            )
+            .catch(
+              function (e) {
+                // On failure, show an error message
+                let errorMessage = JSON.parse(e.responseText).error.message
+                  .value;
+                this.getMessageModel().setProperty("/", [
+                  Utils.returnMessage(this, Constants.state.ERROR, errorMessage)
+                ]);
+                iCountParamsDesc++;
+                if (iCountParamsDesc === aCreateTorParameterDescView.length) {
+                  this._promiseAllCreateTorParameter(this.pCreateTorParameter);
+                }
+              }.bind(this)
+            );
+        }
+      },
+
+      /**
+       * Promise with all calls of service, one for each new record
+       * @param {Array} pCreateTorParameter - Array of promises to create params and descriptions of params
+       */
+      _promiseAllCreateTorParameter: function (pCreateTorParameter) {
+        if (pCreateTorParameter.length > 0) {
+          Promise.all(pCreateTorParameter)
+            .then((oDataCreate) => {
+              // On successful creation, show a success message and call prepare and activate service for draft handling
+              let bErrorMessage = this.getView()
+                .getModel(Constants.model.LOCAL_MODEL)
+                .getProperty(Constants.property.CREATE_ERROR_MESSAGE);
+              this.getMessageModel().refresh();
+              if (!bErrorMessage) {
+                this.iCountCreate = 0;
+                let iLengthDataCreate = oDataCreate.length;
+                for (const element of oDataCreate) {
+                  if (element.lang === undefined) {
+                    this._prepareActivateTorParameterView(
+                      element,
+                      iLengthDataCreate
+                    );
+                  } else {
+                    this._prepareActivateTorParameterDescView(
+                      element,
+                      iLengthDataCreate
+                    );
+                  }
+                }
+              }
+            })
+            .catch((e) => {
+              // On failure, show an error message
+              let errorMessage = JSON.parse(e.responseText).error.message.value;
+              this.getMessageModel().setProperty("/", [
+                Utils.returnMessage(this, Constants.state.ERROR, errorMessage)
+              ]);
+              this.getView().byId("saveButton").setBusy(false);
+            });
+        }
+      },
+
+      /**
+       * Function to handle prepare draft handling of TorParameterView
+       * @param {object} element - Object to send for the service
+       * @param {number} iLengthDataCreate - Length of the array of records to be sent by the service
+       */
+      _prepareActivateTorParameterView: function (element, iLengthDataCreate) {
+        //TOR_PARAMETERView draft call
+        //call services prepare for draft handling
+        Services.prepareTorParameterView(element)
+          .then((oData) => {
+            //call services activate for draft handling
+            let oCreate = {
+              param: oData.param,
+              param_value: oData.param_value
+            };
+            Services.activateTorParameterView(oCreate)
+              .then(() => {
+                this.iCountCreate++;
+                let successMessage = this.getView()
+                  .getModel(Constants.model.I18N_MODEL)
+                  .getResourceBundle()
+                  .getText("service.success.create");
+                this.getMessageModel()
+                  .getProperty("/")
+                  .push(
+                    Utils.returnMessage(
+                      this,
+                      Constants.state.SUCCESS,
+                      successMessage
+                    )
+                  );
+                this.getMessageModel().refresh();
+                if (this.iCountCreate === iLengthDataCreate) {
+                  this.getRouter().navTo(Constants.route.TABLE_ROUTE);
+                }
+              })
+              .catch((e) => {
+                // On failure, show an error message
+                let errorMessage = JSON.parse(e.responseText).error.message
+                  .value;
+                this.getMessageModel()
+                  .getProperty("/")
+                  .push(
+                    Utils.returnMessage(
+                      this,
+                      Constants.state.ERROR,
+                      errorMessage
+                    )
+                  );
+                this.getMessageModel().refresh();
+              })
+              .finally(() => {
+                this.getView().byId("saveButton").setBusy(false);
+              });
+          })
+          .catch((e) => {
+            // On failure, show an error message
+            let errorMessage = JSON.parse(e.responseText).error.message.value;
+            this.getMessageModel()
+              .getProperty("/")
+              .push(
+                Utils.returnMessage(this, Constants.state.ERROR, errorMessage)
+              );
+            this.getMessageModel().refresh();
+            this.getView().byId("saveButton").setBusy(false);
+          });
+      },
+
+      /**
+       * Function to handle prepare draft handling of TorParameterDescView
+       * @param {object} element - Object to send for the service
+       * @param {number} iLengthDataCreate - Length of the array of records to be sent by the service
+       */
+      _prepareActivateTorParameterDescView: function (
+        element,
+        iLengthDataCreate
+      ) {
+        //TOR_PARAMETER_DESCView draft call
+        //call services prepare for draft handling
+        Services.prepareTorParameterDescView(element)
+          .then((oData) => {
+            //call services activate for draft handling
+            let oCreate = {
+              param: oData.param,
+              param_value: oData.param_value,
+              lang: oData.lang
+            };
+            Services.activateTorParameterDescView(oCreate)
+              .then(() => {
+                this.iCountCreate++;
+                let successMessage = this.getView()
+                  .getModel(Constants.model.I18N_MODEL)
+                  .getResourceBundle()
+                  .getText("service.success.create");
+                this.getMessageModel()
+                  .getProperty("/")
+                  .push(
+                    Utils.returnMessage(
+                      this,
+                      Constants.state.SUCCESS,
+                      successMessage
+                    )
+                  );
+                this.getMessageModel().refresh();
+                if (this.iCountCreate === iLengthDataCreate) {
+                  this.getRouter().navTo(Constants.route.TABLE_ROUTE);
+                }
+              })
+              .catch((e) => {
+                // On failure, show an error message
+                let errorMessage = JSON.parse(e.responseText).error.message
+                  .value;
+                this.getMessageModel()
+                  .getProperty("/")
+                  .push(
+                    Utils.returnMessage(
+                      this,
+                      Constants.state.ERROR,
+                      errorMessage
+                    )
+                  );
+                this.getMessageModel().refresh();
+              })
+              .finally(() => {
+                this.getView().byId("saveButton").setBusy(false);
+              });
+          })
+          .catch((e) => {
+            // On failure, show an error message
+            let errorMessage = JSON.parse(e.responseText).error.message.value;
+            this.getMessageModel()
+              .getProperty("/")
+              .push(
+                Utils.returnMessage(this, Constants.state.ERROR, errorMessage)
+              );
+            this.getMessageModel().refresh();
+            this.getView().byId("saveButton").getSource().setBusy(false);
+          });
+      }
+    });
+  }
+);
+
+
+File: EditView.controller.js
+// Define the SAP UI5 module with necessary dependencies
+sap.ui.define(
+  [
+    "apptorparameters/controller/BaseController", // Custom router for navigation
+    "apptorparameters/utils/Constants", // Constants used across the application
+    "apptorparameters/utils/DataManager", // DataManager for handling data operations
+    "apptorparameters/utils/Services", // Services for backend communication
+    "apptorparameters/utils/Utils", // Utils for various utility functions
+    "sap/m/MessageBox" // MessageBox for showing alerts and messages
+  ],
+  /**
+   * Main function of the module.
+   * @param {object} BaseController - SAP UI5 base controller class
+   * @param {object} Constants - Reference to utils/Constants.js file
+   * @param {object} DataManager - Reference to utils/DataManager.js file
+   * @param {object} Services - Reference to utils/Services.js file
+   * @param {object} Utils - Reference to utils/Utils.js file
+   * @param {typeof sap.m.MessageBox} MessageBox - Dialogs for messages in the application
+   * @returns {object} Extension of BaseController object
+   */
+  function (
+    BaseController,
+    Constants,
+    DataManager,
+    Services,
+    Utils,
+    MessageBox
+  ) {
+    "use strict";
+    // Extend the custom Router for this specific controller
+    return BaseController.extend("apptorparameters.controller.EditView", {
+      /** Lifecycle hook for initialization */
+      onInit: function () {
+        if (
+          this.getOwnerComponent()
+            .getModel(Constants.model.ROLES_MODEL)
+            .getProperty(Constants.property.IS_EDIT_USER) === undefined
+        ) {
+          this.isEditUser();
+        }
+        // Attach a route matched event for a specific route
+        this.getRouter()
+          .getRoute(Constants.route.EDIT_ROUTE)
+          .attachMatched(this.onMatchedRouteDefault, this);
+      },
+
+      /** Handler for when the route is matched */
+      onMatchedRouteDefault: function () {
+        // Create a popover UI component
+        Utils.createPopover(this, Constants.id.EDITVIEW_MESSAGEPOPOVER_ID);
+        // Clear selection in the EditViewTable
+        let EditViewTable = this.getView().byId(Constants.id.EDITVIEWTABLE_ID);
+        EditViewTable.clearSelection();
+        this.getMessageModel().setProperty("/", []);
+        this.getMessageModel().refresh();
+        this._activateDraftHandlingEdit();
+      },
+
+      /**
+       * Handler for the 'Save Edit' button press
+       * @param {object} oEvent - This object contains relevant information about the event that ocurred, such as the event type, the control that triggered the event, and any additional data associated
+       */
+      onPressSaveEditButton: function (oEvent) {
+        this.oSaveEditButton = oEvent.getSource();
+        // Get the EditViewTable and its selected indices
+        let EditViewTable = this.getView().byId(Constants.id.EDITVIEWTABLE_ID);
+        this.aIndices = EditViewTable.getSelectedIndices();
+        // Validate if rows are selected, else show error message
+        if (this.aIndices.length < 1) {
+          let errorMessage = this.getView()
+            .getModel(Constants.model.I18N_MODEL)
+            .getResourceBundle()
+            .getText("service.error.edit.norecords");
+          this.getMessageModel().setProperty("/", [
+            Utils.returnMessage(this, Constants.state.INFORMATION, errorMessage)
+          ]);
+          this.getMessageModel().refresh();
+          this._openPopOverButton();
+          return;
+        }
+        /** Continue with the edit process */
+        this.oSaveEditButton.setBusy(true);
+        this._editTorParameterTotalView(this.aIndices)
+          .then(() => {
+            let bEditTorParameter = true;
+            this._liberateEditTorParameterTotalView(bEditTorParameter);
+          })
+          .catch((e) => {
+            // On failure, show an error message
+            if (e?.statusText) {
+              this.getMessageModel()
+                .getProperty("/")
+                .push(
+                  Utils.returnMessage(
+                    this,
+                    Constants.state.ERROR,
+                    JSON.parse(e.responseText).error.message.value
+                  )
+                );
+            } else {
+              this.getMessageModel()
+                .getProperty("/")
+                .push(Utils.returnMessage(this, Constants.state.ERROR, ""));
+            }
+            this.getMessageModel().refresh();
+            this._openPopOverButton();
+          });
+      },
+
+      /**
+       * Navigation button press handler
+       * @param {object} oEvent - This object contains relevant information about the event that ocurred, such as the event type, the control that triggered the event, and any additional data associated
+       */
+      onNavButtonPress: function (oEvent) {
+        //Preguntamos que si queremos salir sin guardar cambios y, después, liberamos el objeto a editar
+        MessageBox.warning(
+          this.getView()
+            .getModel(Constants.model.I18N_MODEL)
+            .getResourceBundle()
+            .getText("editView.message.warningBack"),
+          {
+            actions: [MessageBox.Action.OK, MessageBox.Action.CLOSE],
+            emphasizedAction: MessageBox.Action.OK,
+            onClose: function (sAction) {
+              if (sAction === MessageBox.Action.OK) {
+                let bEditTorParameter = false;
+                this.navButton = oEvent.getSource();
+                this.navButton.setBusyIndicatorDelay(0);
+                this.navButton.setBusy(true);
+                this._liberateEditTorParameterTotalView(bEditTorParameter);
+              }
+            }.bind(this)
+          }
+        );
+      },
+
+      /** Function to open the Popover UI component */
+      _openPopOverButton: function () {
+        // Get the popover and open it by the specified button
+        Utils.getPopover().openBy(
+          this.getView().byId(Constants.id.EDITVIEW_MESSAGEPOPOVER_ID)
+        );
+      },
+
+      /**
+       * activate DraftHandling so that another user cannot edit
+       */
+      _activateDraftHandlingEdit: function () {
+        let oItemsTable = this.getView()
+          .getModel(Constants.model.LOCAL_MODEL)
+          .getProperty(
+            this.getView()
+              .byId(Constants.id.EDITVIEWTABLE_ID)
+              .getBinding()
+              .getPath()
+          );
+        let oItemsTableIndex = [];
+        oItemsTable.forEach((value, key) => {
+          oItemsTableIndex.push(key);
+        });
+        this._draftEditTorParameterTotalView(oItemsTableIndex).catch((e) => {
+          // On failure, show an error message
+          let sError;
+          if (e?.responseText) {
+            sError = JSON.parse(e.responseText).error.message.value;
+            this.getMessageModel()
+              .getProperty("/")
+              .push(Utils.returnMessage(this, Constants.state.ERROR, sError));
+          } else {
+            sError = Constants.state.ERROR;
+            this.getMessageModel()
+              .getProperty("/")
+              .push(Utils.returnMessage(this, Constants.state.ERROR, ""));
+          }
+          this.getMessageModel().refresh();
+          MessageBox.error(sError, {
+            actions: [MessageBox.Action.CLOSE],
+            onClose: function () {
+              this.getRouter().navTo(Constants.route.TABLE_ROUTE);
+            }.bind(this)
+          });
+        });
+      },
+
+      /**
+       * disable DraftHandling so that another user can edit
+       * @param {boolean} bEditTorParameter - Boolean parameter that tells us whether or not the lines in the view were edited to add them to the draft handling service.
+       */
+      _liberateEditTorParameterTotalView: function (bEditTorParameter) {
+        let oItemsTableIndex = [];
+        if (!bEditTorParameter) {
+          let oItemsTable = this.getView()
+            .getModel(Constants.model.LOCAL_MODEL)
+            .getProperty(
+              this.getView()
+                .byId(Constants.id.EDITVIEWTABLE_ID)
+                .getBinding()
+                .getPath()
+            );
+          oItemsTable.forEach((value, key) => {
+            oItemsTableIndex.push(key);
+          });
+        } else {
+          oItemsTableIndex = this.aIndices;
+        }
+        //Continue with prepare draft process (draft prepare)
+        this._prepareTorParameterTotalView(oItemsTableIndex)
+          .then(() => {
+            //Finish with activate draft process (draft activate)
+            this._onStepActivateTorParameterTotalView(
+              bEditTorParameter,
+              oItemsTableIndex,
+              this.getMessageModel()
+            );
+          })
+          .catch((e) => {
+            // On failure, show an error message
+            if (e?.statusText) {
+              this.getMessageModel()
+                .getProperty("/")
+                .push(
+                  Utils.returnMessage(
+                    this,
+                    Constants.state.ERROR,
+                    JSON.parse(e.responseText).error.message.value
+                  )
+                );
+            } else {
+              this.getMessageModel()
+                .getProperty("/")
+                .push(Utils.returnMessage(this, Constants.state.ERROR, ""));
+            }
+            this.getMessageModel().refresh();
+            this._openPopOverButton();
+
+            if (this.navButton) {
+              this.navButton.setBusy(false);
+            }
+            if (this.oSaveEditButton) {
+              this.oSaveEditButton.setBusy(false);
+            }
+          });
+      },
+
+      /**
+       * Activate draft process
+       * @param {boolean} bEditTorParameter - Boolean parameter that tells us whether or not the lines in the view were edited to add them to the draft handling service.
+       * @param {Array} aItemsTableIndex - Array of parameters selected indices.
+       * @param {object} messageModel - Model of popover messages.
+       */
+      _onStepActivateTorParameterTotalView: function (
+        bEditTorParameter,
+        aItemsTableIndex,
+        messageModel
+      ) {
+        this._activateTorParameterTotalView(aItemsTableIndex)
+          .then(() => {
+            if (bEditTorParameter) {
+              // On successful edit, show a success message and navigate to the Table route
+              let successMessage = this.getView()
+                .getModel(Constants.model.I18N_MODEL)
+                .getResourceBundle()
+                .getText("service.success.edit");
+              messageModel.setProperty("/", [
+                Utils.returnMessage(
+                  this,
+                  Constants.state.SUCCESS,
+                  successMessage
+                )
+              ]);
+              messageModel.refresh();
+            }
+            // Navigate to the table route
+            this.getRouter().navTo(Constants.route.TABLE_ROUTE);
+          })
+          .catch((e) => {
+            // On failure, show an error message
+            if (e?.statusText) {
+              messageModel
+                .getProperty("/")
+                .push(
+                  Utils.returnMessage(
+                    this,
+                    Constants.state.ERROR,
+                    JSON.parse(e.responseText).error.message.value
+                  )
+                );
+            } else {
+              messageModel
+                .getProperty("/")
+                .push(Utils.returnMessage(this, Constants.state.ERROR, ""));
+            }
+            messageModel.refresh();
+            this._openPopOverButton();
+          })
+          .finally(() => {
+            if (this.navButton) {
+              this.navButton.setBusy(false);
+            }
+            if (this.oSaveEditButton) {
+              this.oSaveEditButton.setBusy(false);
+            }
+          });
+      },
+
+      /**
+       * Function to handle draft editing of TorParameterTotalView
+       * @param {Array} aIndices - Array of parameters selected indices
+       * @returns {object} Returns a promise object with all services calls for draft edit the descriptives fields of a parameter
+       */
+      _draftEditTorParameterTotalView: function (aIndices) {
+        // Get the EditViewTable and the selected items
+        let EditViewTable = this.getView().byId(Constants.id.EDITVIEWTABLE_ID);
+        let aSelectedItems = [];
+        // Loop through indices to get the selected items
+        aIndices.forEach((value) => {
+          aSelectedItems.push(
+            EditViewTable.getContextByIndex(value).getObject()
+          );
+        });
+        // Prepare promises for editing each selected item
+        let pDraftEditTorParameterDescView = [];
+        aSelectedItems.forEach((value) => {
+          let draftEditParameter =
+            Services.draftEditTorParameterDescView(value);
+          pDraftEditTorParameterDescView.push(draftEditParameter);
+        });
+        // Wait for all edit operations to complete
+        return Promise.all(pDraftEditTorParameterDescView);
+      },
+
+      /**
+       * Prepare promises to edit each selected item
+       * @param {Array} aIndices - Array of parameters selected indices
+       * @returns {object} Returns a promise object with all services calls for edit the descriptives fields of a parameter
+       */
+      _editTorParameterTotalView: function (aIndices) {
+        // Get the EditViewTable and the selected items
+        let EditViewTable = this.getView().byId(Constants.id.EDITVIEWTABLE_ID);
+        let aSelectedItems = [];
+        // Loop through indices to get the selected items
+        aIndices.forEach((value) => {
+          aSelectedItems.push(
+            EditViewTable.getContextByIndex(value).getObject()
+          );
+        });
+        // Prepare promises for editing each selected item
+        let pEditTorParameterDescView = [];
+        aSelectedItems.forEach((value) => {
+          let editParameter = Services.editTorParameterDescView(value, value);
+          pEditTorParameterDescView.push(editParameter);
+        });
+        // Wait for all edit operations to complete
+        return Promise.all(pEditTorParameterDescView);
+      },
+
+      /**
+       * Prepare promises for editing each selected item
+       * @param {Array} aIndices - Array of parameters selected indices
+       * @returns {object} Returns a promise object with all services calls for draft prepare the descriptives fields of a parameter
+       */
+      _prepareTorParameterTotalView: function (aIndices) {
+        // Get the EditViewTable and the selected items
+        let EditViewTable = this.getView().byId(Constants.id.EDITVIEWTABLE_ID);
+        let aSelectedItems = [];
+        // Loop through indices to get the selected items
+        aIndices.forEach((value) => {
+          aSelectedItems.push(
+            EditViewTable.getContextByIndex(value).getObject()
+          );
+        });
+        // Prepare promises for editing each selected item
+        let pPrepareTorParameterDescView = [];
+        aSelectedItems.forEach((value) => {
+          let prepareParameter = Services.prepareTorParameterDescView(
+            value,
+            value
+          );
+          pPrepareTorParameterDescView.push(prepareParameter);
+        });
+        // Wait for all edit operations to complete
+        return Promise.all(pPrepareTorParameterDescView);
+      },
+
+      /**
+       * Prepare promises for editing each selected item
+       * @param {Array} aIndices - Array of parameters selected indices
+       * @returns {object} Returns a promise object with all services calls for draft activate the descriptives fields of a parameter
+       */
+      _activateTorParameterTotalView: function (aIndices) {
+        // Get the EditViewTable and the selected items
+        let EditViewTable = this.getView().byId(Constants.id.EDITVIEWTABLE_ID);
+        let aSelectedItems = [];
+        // Loop through indices to get the selected items
+        aIndices.forEach((value) => {
+          aSelectedItems.push(
+            EditViewTable.getContextByIndex(value).getObject()
+          );
+        });
+        // Prepare promises for editing each selected item
+        let pActivateTorParameterDescView = [];
+        aSelectedItems.forEach((value) => {
+          let prepareParameter = Services.activateTorParameterDescView(
+            value,
+            value
+          );
+          pActivateTorParameterDescView.push(prepareParameter);
+        });
+        // Wait for all edit operations to complete
+        return Promise.all(pActivateTorParameterDescView);
+      }
+    });
+  }
+);
+
+
+File: App.controller.js
+sap.ui.define(
+  [
+    "apptorparameters/controller/BaseController",
+    "apptorparameters/utils/Constants",
+    "apptorparameters/utils/Services",
+    "apptorparameters/utils/DataManager"
+  ],
+  function (BaseController, Constants, Services, DataManager) {
+    "use strict";
+    return BaseController.extend("apptorparameters.controller.App", {
+      /** Lifecycle hook for initialization */
+      onInit: function () {
+        this.createModels();
+      },
+
+      /** Create models related to the APP */
+      createModels: function () {
+        let localModel = this.getOwnerComponent().getModel(
+          Constants.model.LOCAL_MODEL
+        );
+        localModel.setProperty(Constants.property.MAIN_BINDING, {});
+        DataManager.setLocalModel(localModel);
+        Services.setMainModel(
+          this.getOwnerComponent().getModel(Constants.model.ODATA_MODEL)
+        );
+        Services.setValueHelpModel(
+          this.getOwnerComponent().getModel(
+            Constants.model.ODATA_MODEL_VALUEHELP
+          )
+        );
+        Services.setUserRolesModel(
+          this.getOwnerComponent().getModel(Constants.model.USER_ROLES_MODEL)
+        );
+        this.getMessageModel().setProperty("/", []);
+        localModel.setProperty(
+          Constants.property.O_SELECT_LANG,
+          this.getArrayLanguages()
+        );
+      }
+    });
+  }
+);
+
+
+File: CreateView.view.xml
+<mvc:View
+    controllerName="apptorparameters.controller.CreateView"
+    xmlns="sap.m"
+    xmlns:f="sap.f"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns:table="sap.ui.table"
+    xmlns:form="sap.ui.layout.form"
+    xmlns:fb="sap.ui.comp.filterbar"
+    xmlns:core="sap.ui.core">
+    <Page
+        id="createPage"
+        enableScrolling="true"
+        title="{i18n>createView.page.title}"
+        titleLevel="H6"
+        showHeader="true"
+        showNavButton="true"
+        navButtonPress="onNavButtonPress"
+        titleAlignment="Center"
+        class="sapUiNoContentPadding">
+        <content>
+            <f:DynamicPage
+                id="IDDynamicPage3"
+                showFooter="false">
+                <f:header>
+                    <f:DynamicPageHeader
+                        pinnable="false"
+                        id="IDDynamicPageHeader3">
+                        <f:content>
+                            <Title
+                                id="tableTitle3"
+                                text="{i18n>createView.table.title}"
+                                level="H2"/>
+                        </f:content>
+                    </f:DynamicPageHeader>
+                </f:header>
+                <f:content>
+                    <table:Table
+                        id="createTable"
+                        busyIndicatorDelay="0"
+                        rows="{localModel>/createParams}"
+                        rowSelectionChange="onSelectedParentRow"
+                        class="sapFDynamicPageAlignContent"
+                        rowMode="Auto">
+                        <table:extension>
+                            <OverflowToolbar id="tableOverflowToolbar">
+                                <ToolbarSpacer id="extensionToolbarSpacer" />
+                                <Button
+                                    id="deleteButton"
+                                    icon="sap-icon://delete"
+                                    text="{i18n>button.delete}"
+                                    press="onPressDeleteButton"
+                                    enabled="{rolesModel>/isEditUser}"/>
+                                <Button
+                                    id="addButton"
+                                    text="{i18n>createView.table.Add}"
+                                    icon="sap-icon://add"
+                                    press="onPressAddRow"
+                                    enabled="{rolesModel>/isEditUser}"/>
+                            </OverflowToolbar>
+                        </table:extension>
+                        <table:columns>
+                            <table:Column id="paramColumn">
+                                <Label
+                                    id="paramLabel"
+                                    text="{i18n>table.param}"/>
+                                <table:template>
+                                    <Input
+                                        id="paramInput"
+                                        value="{localModel>param}"
+                                        maxLength="10"/>
+                                </table:template>
+                            </table:Column>
+                            <table:Column id="paramValueColumn">
+                                <Label
+                                    id="paramValueLabel"
+                                    text="{i18n>table.param_value}"/>
+                                <table:template>
+                                    <Input
+                                        id="paramValueInput"
+                                        value="{localModel>param_value}"
+                                        maxLength="20"/>
+                                </table:template>
+                            </table:Column>
+                            <table:Column
+                                id="actionColumn"
+                                width="20%">
+                                <table:template>
+                                    <Button
+                                        id="descriptionButton"
+                                        press="onBtnPressDescription"
+                                        icon="sap-icon://add"
+                                        text="{i18n>createView.table.Description}"
+                                        enabled="{rolesModel>/isEditUser}"/>
+                                </table:template>
+                            </table:Column>
+                        </table:columns>
+                    </table:Table>
+                </f:content>
+            </f:DynamicPage>
+        </content>
+        <footer>
+            <OverflowToolbar id="footerOverflowToolbar">
+                <Button
+                    id="CreateViewMessagePopoverBtn"
+                    ariaHasPopup="Dialog"
+                    press="messagePopOverPress"/>
+                <ToolbarSpacer id="extensionToolbarSpacer2" />
+                <Button
+                    id="saveButton"
+                    text="{i18n>button.save}"
+                    icon="sap-icon://save"
+                    press="onPressCreateButton"
+                    busyIndicatorDelay="0"
+                    type="Emphasized"
+                    enabled="{rolesModel>/isEditUser}"/>
+            </OverflowToolbar>
+        </footer>
+    </Page>
+</mvc:View>
+
+
+File: App.view.xml
+<mvc:View controllerName="apptorparameters.controller.App"
+    xmlns:mvc="sap.ui.core.mvc" displayBlock="true"
+    xmlns="sap.m">
+    <App id="app" class="sapUiResponsiveContentPadding">
+        <pages>
+            <Page id="appPage">
+                <content/>
+            </Page>
+        </pages>
+    </App>
+</mvc:View>
+
+
+File: Table.view.xml
+<mvc:View
+    controllerName="apptorparameters.controller.Table"
+    xmlns="sap.m"
+	xmlns:f="sap.f"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns:table="sap.ui.table"
+    xmlns:form="sap.ui.layout.form"
+    xmlns:fb="sap.ui.comp.filterbar"
+    xmlns:core="sap.ui.core">
+    <Page id="tablePage" 
+          enableScrolling="true" 
+          title="{i18n>table.page.title}" 
+          titleLevel="H6"
+          showHeader="true" 
+          titleAlignment="Center"
+          class="sapUiNoContentPadding">
+        <content>
+        <f:DynamicPage id="IDDynamicPage1" showFooter="false">
+            <f:header>
+                <f:DynamicPageHeader pinnable="false" id="IDDynamicPageHeader1">
+                    <f:content>
+                       <core:Fragment fragmentName="apptorparameters.view.fragment.FilterBar" type="XML" />
+                    </f:content>
+                </f:DynamicPageHeader>
+            </f:header>
+            <f:content>
+                <table:Table
+                    id="TableViewTable"
+                    rows="{localModel>/ParameterTable}"
+                    busyIndicatorDelay="0"
+                    selectionMode="MultiToggle"
+                    enableSelectAll="true"
+                    rowSelectionChange="onSelectionChange"
+                    rowMode="Auto"
+                    class="sapFDynamicPageAlignContent">
+                    <table:columns>
+                        <table:Column
+                            id="paramColumn"
+                            sortProperty="param"
+                            filterProperty="param">
+                            <Label id="paramLabel" text="{i18n>table.param}" />
+                            <table:template>
+                                <Text id="paramLabelText" text="{localModel>param}"/>
+                            </table:template>
+                        </table:Column>
+                        <table:Column
+                            id="paramValueColumn"
+                            sortProperty="param_value"
+                            filterProperty="param_value">
+                            <Label id="parameterValueLabel" text="{i18n>table.param_value}" />
+                            <table:template>
+                                <Text id="paramValueText" text="{localModel>param_value}"/>
+                            </table:template>
+                        </table:Column>
+                        <table:Column
+                            id="paramValueDescColumn"
+                            sortProperty="param_value_desc"
+                            filterProperty="param_value_desc">
+                            <Label id="paramValueDescLabel" text="{i18n>table.param_value_desc}" />
+                            <table:template>
+                                <Text id="paramValueDescText" text="{localModel>param_value_desc}"/>
+                            </table:template>
+                        </table:Column>
+                        <table:Column
+                            id="langColumn"
+                            sortProperty="lang"
+                            filterProperty="lang">
+                            <Label id="labelLabel" text="{i18n>table.lang}" />
+                            <table:template>
+                                <Text id="langText" text="{localModel>lang}"/>
+                            </table:template>
+                        </table:Column>
+                    </table:columns>
+                    <table:extension>
+                        <OverflowToolbar id="otbSubheader">
+                            <Title
+                                id="title"
+                                text="{i18n>table.table.title}"/>
+                            <ToolbarSpacer id="extensionToolbarSpacer"/>
+                            <Button
+                                id="createButton"
+                                icon="sap-icon://add"
+                                text="{i18n>button.create}"
+                                press="onPressCreateButton"
+                                enabled="{rolesModel>/isEditUser}"/>
+                            <Button
+                                id="editButton"
+                                icon="sap-icon://edit"
+                                text="{i18n>button.edit}"
+                                press="onPressEditButton"
+                                enabled="{rolesModel>/isEditUser}"/>
+                            <Button
+                                id="deleteButton"
+                                icon="sap-icon://delete"
+                                text="{i18n>button.delete}"
+                                press="onPressDeleteButton"
+                                enabled="{rolesModel>/isEditUser}"/>
+                        </OverflowToolbar>
+                    </table:extension>
+                </table:Table>
+            </f:content>
+        </f:DynamicPage>
+    </content>
+    <footer>
+        <OverflowToolbar id="footerOverflowToolbar">
+                <Button
+                    id="TableViewMessagePopoverBtn"
+                    ariaHasPopup="Dialog"
+                    press="messagePopOverPress"/>
+                <ToolbarSpacer id="footerOverflowToolbarSpacer"/>
+            </OverflowToolbar>
+        </footer>
+    </Page>
+</mvc:View>
+
+
+File: EditView.view.xml
+<mvc:View
+    controllerName="apptorparameters.controller.EditView"
+    xmlns="sap.m"
+    xmlns:f="sap.f"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns:table="sap.ui.table"
+    xmlns:form="sap.ui.layout.form"
+    xmlns:fb="sap.ui.comp.filterbar"
+    xmlns:core="sap.ui.core">
+    <Page
+        id="editViewPage"
+        enableScrolling="true"
+        title="{i18n>editView.page.title}"
+        titleLevel="H6"
+        showHeader="true"
+        showNavButton="true"
+        navButtonPress="onNavButtonPress"
+        titleAlignment="Center"
+        class="sapUiNoContentPadding">
+        <content>
+            <f:DynamicPage
+                id="IDDynamicPage2"
+                showFooter="false">
+                <f:header>
+                    <f:DynamicPageHeader pinnable="false" id="IDDynamicPageHeader2">
+                        <f:content>
+                            <Title
+                                id="tableTitle3"
+                                text="{i18n>editView.table.title}"
+                                level="H2"/>
+                        </f:content>
+                    </f:DynamicPageHeader>
+                </f:header>
+                <f:content>
+                    <table:Table
+                        id="EditViewTable"
+                        busyIndicatorDelay="0"
+                        rows="{localModel>/EditTOR_PARAMETER_TOTALView}"
+                        rowSelectionChange="onSelectionChange"
+                        class="sapFDynamicPageAlignContent"
+                        rowMode="Auto">
+                        <table:columns>
+                            <table:Column id="paramColumn">
+                                <Label
+                                    id="paramLabel"
+                                    text="{i18n>table.param}"/>
+                                <table:template>
+                                    <Text
+                                        id="paramText"
+                                        text="{localModel>param}"/>
+                                </table:template>
+                            </table:Column>
+                            <table:Column id="paramValueColumn">
+                                <Label
+                                    id="paramValueLabel"
+                                    text="{i18n>table.param_value}"/>
+                                <table:template>
+                                    <Text
+                                        id="paramValueText"
+                                        text="{localModel>param_value}"/>
+                                </table:template>
+                            </table:Column>
+                            <table:Column id="paramValueDescColumn">
+                                <Label
+                                    id="paramValueDescLabel"
+                                    text="{i18n>table.param_value_desc}"/>
+                                <table:template>
+                                    <Input
+                                        id="paramValueDescInput"
+                                        value="{localModel>param_value_desc}"
+                                        maxLength="40"/>
+                                </table:template>
+                            </table:Column>
+                            <table:Column id="langColumn">
+                                <Label
+                                    id="langLabel"
+                                    text="{i18n>table.lang}"/>
+                                <table:template>
+                                    <Text
+                                        id="langText"
+                                        text="{localModel>lang}"/>
+                                </table:template>
+                            </table:Column>
+                        </table:columns>
+                    </table:Table>
+                </f:content>
+            </f:DynamicPage>
+        </content>
+        <footer>
+            <OverflowToolbar id="footerOverflowToolbar">
+                <Button
+                    id="EditViewMessagePopoverBtn"
+                    ariaHasPopup="Dialog"/>
+                <ToolbarSpacer id="footerOverflowToolbarSpacer" />
+                <Button
+                    id="saveButton"
+                    icon="sap-icon://save"
+                    text="{i18n>button.save}"
+                    press="onPressSaveEditButton"
+                    type="Emphasized"
+                    busyIndicatorDelay="0"
+                    enabled="{rolesModel>/isEditUser}"/>
+            </OverflowToolbar>
+        </footer>
+    </Page>
+</mvc:View>
+
+
