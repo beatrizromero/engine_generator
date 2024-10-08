@@ -1,0 +1,105 @@
+name: Generate TXT from Another Repo 2.1
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_repo_url:
+        description: 'URL of the source repository (e.g., https://github.com/user/source-repo.git)'
+        required: true
+      folder_name:
+        description: 'Name of the folder to search for files (leave empty for db and srv)'
+        required: false  # Hacer el parámetro opcional
+
+jobs:
+  generate-txt:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Checkout the current repository
+    - name: Checkout Current Repository
+      uses: actions/checkout@v3
+
+    # 2. Clone the source repository with authentication
+    - name: Clone Source Repository
+      run: |
+        git clone https://${{ secrets.PAT_TOKEN }}@github.com/beatrizromero/testcaptool.git source-repo
+        echo "Source repository cloned."
+
+    # 3. List files in the folder passed by parameter (for debugging)
+    - name: List Files in Folder
+      run: |
+        cd source-repo
+        echo "Listing all files in the folder: ${{ github.event.inputs.folder_name }}"
+        if [ -z "${{ github.event.inputs.folder_name }}" ]; then
+          echo "No folder specified. Processing db and srv folders."
+          find db srv -type f || echo "No files found in db and srv folders."
+        else
+          find ${{ github.event.inputs.folder_name }} -type f || echo "No files found in the specified folder."
+        fi
+
+    # 4. Process files and generate output.txt
+    - name: Process Files
+      run: |
+        cd source-repo
+        echo "Processing files..."
+        search_dir="${{ github.event.inputs.folder_name }}"  # Carpeta pasada por parámetro
+
+        # Inicializar output.txt
+        echo "" > output.txt  # Asegúrate de que output.txt esté vacío al inicio
+
+        if [ -z "$search_dir" ]; then
+          # Si no se especificó folder_name, procesar db y srv
+          for dir in db srv; do
+            find "$dir" \( -name "*.cds" -o -name "*.js" -o -name "*.hdbview" -o -name "*.hdbprocedure" -o -name "*.hdbtable" \) -print0 | while IFS= read -r -d '' file; do
+              echo "Processing file: $file"  # Imprimir el nombre del archivo que se está procesando
+              echo "File: $(basename "$file")" >> output.txt  # Escribir el nombre del archivo en output.txt
+              cat "$file" >> output.txt  # Concatenar el contenido del archivo
+              echo -e "\n" >> output.txt  # Agregar una nueva línea para separar el contenido de diferentes archivos
+            done
+          done
+        else
+          # Si se especificó folder_name, procesar esa carpeta
+          find "$search_dir" \( -name "*.cds" -o -name "*.js" -o -name "*.hdbview" -o -name "*.hdbprocedure" -o -name "*.hdbtable" \) -print0 | while IFS= read -r -d '' file; do
+            echo "Processing file: $file"  # Imprimir el nombre del archivo que se está procesando
+            echo "File: $(basename "$file")" >> output.txt  # Escribir el nombre del archivo en output.txt
+            cat "$file" >> output.txt  # Concatenar el contenido del archivo
+            echo -e "\n" >> output.txt  # Agregar una nueva línea para separar el contenido de diferentes archivos
+          done
+        fi
+
+        echo "Generated output.txt with the content of the following files:"
+        cat output.txt
+
+        # Comprobar si output.txt se creó correctamente
+        if [ -f output.txt ]; then
+          echo "output.txt created successfully."
+        else
+          echo "Error: output.txt not created."
+          exit 1
+        fi
+
+    # 5. Check if output.txt was created and print its contents (for debugging)
+    - name: Check for output.txt and print contents
+      run: |
+        cd source-repo  # Cambiar al directorio correcto
+        if [ -f output.txt ]; then
+          echo "output.txt exists."
+          cat output.txt  # Print the contents of the output.txt file for verification
+        else
+          echo "output.txt not found. Exiting."
+          exit 1
+        fi
+
+    # 6. Move output.txt to the current repository
+    - name: Move to Current Repository
+      run: |
+        mv source-repo/output.txt ./  # Move output.txt to the root of the current repository
+
+    # 7. Commit and push the generated TXT file
+    - name: Commit TXT file to current repository
+      run: |
+        git config --global user.email "beatriz.romero.duran@accenture.com"
+        git config --global user.name "beatrizromero"
+        git add output.txt
+        git commit -m "Generated output.txt from another repository" || echo "No changes to commit"
+        git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/beatrizromero/btptools.git HEAD:main
