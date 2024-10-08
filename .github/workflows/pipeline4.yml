@@ -22,7 +22,7 @@ jobs:
     # 2. Clone the source repository with authentication
     - name: Clone Source Repository
       run: |
-        git clone https://${{ secrets.PAT_TOKEN }}@${{ github.event.inputs.source_repo_url }} source-repo
+        git clone ${{ secrets.PAT_TOKEN }}@${{ github.event.inputs.source_repo_url }} source-repo
         echo "Source repository cloned."
 
     # 3. List files in the folder passed by parameter (for debugging)
