@@ -1,0 +1,60 @@
+
+File: schema.cds
+using { Currency, managed, sap } from '@sap/cds/common';
+namespace sap.capire.bookshop;
+
+entity Books : managed {
+  key ID   : Integer;
+  title    : localized String(111)  @mandatory;
+  descr    : localized String(1111);
+  author   : Association to Authors @mandatory;
+  genre    : Association to Genres;
+  stock    : Integer;
+  price    : Decimal;
+  currency : Currency;
+  image    : LargeBinary @Core.MediaType: 'image/png';
+}
+
+entity Authors : managed {
+  key ID       : Integer;
+  name         : String(111) @mandatory;
+  dateOfBirth  : Date;
+  dateOfDeath  : Date;
+  placeOfBirth : String;
+  placeOfDeath : String;
+  books        : Association to many Books on books.author = $self;
+}
+
+/** Hierarchically organized Code List for Genres */
+entity Genres : sap.common.CodeList {
+  key ID   : Integer;
+  parent   : Association to Genres;
+  children : Composition of many Genres on children.parent = $self;
+}
+
+
+File: admin-service.js
+const cds = require('@sap/cds')
+
+module.exports = class AdminService extends cds.ApplicationService { init(){
+  this.before (['NEW','CREATE'],'Authors', genid)
+  this.before (['NEW','CREATE'],'Books', genid)
+  return super.init()
+}}
+
+/** Generate primary keys for target entity in request */
+async function genid (req) {
+  if (req.data.ID) return
+  const {id} = await SELECT.one.from(req.target).columns('max(ID) as id')
+  req.data.ID = id + 4 // Note: that is not safe! ok for this sample only.
+}
+
+
+File: admin-service.cds
+using { sap.capire.bookshop as my } from '../db/schema';
+service AdminService @(requires:'admin', path:'/admin') {
+  entity Books as projection on my.Books;
+  entity Authors as projection on my.Authors;
+}
+
+
