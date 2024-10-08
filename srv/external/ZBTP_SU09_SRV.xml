@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="1.0"
+    xmlns:edmx="http://schemas.microsoft.com/ado/2007/06/edmx"
+    xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata"
+    xmlns:sap="http://www.sap.com/Protocols/SAPData">
+    <edmx:DataServices m:DataServiceVersion="2.0">
+        <Schema Namespace="ZBTP_SU09_SRV" xml:lang="en" sap:schema-version="1"
+            xmlns="http://schemas.microsoft.com/ado/2008/09/edm">
+            <EntityType Name="ZBTP_SU09Result" sap:label="ZBTP_SU09" sap:semantics="aggregate" sap:content-version="1">
+                <Key>
+                    <PropertyRef Name="ID"/>
+                </Key>
+                <Property Name="ID" Type="Edm.String" Nullable="false" sap:filterable="false" sap:updatable="false" sap:sortable="false"/>
+                <Property Name="TotaledProperties" Type="Edm.String" sap:aggregation-role="totaled-properties-list" sap:is-annotation="true" sap:updatable="false" sap:label="Total/Subtotal" sap:sortable="false"/>
+                <Property Name="A0CUSTOMER__0COUNTRY" Type="Edm.String" MaxLength="3" sap:aggregation-role="dimension" sap:text="A0CUSTOMER__0COUNTRY_T" sap:label="Country" sap:creatable="false" sap:updatable="false"/>
+                <Property Name="A0CUSTOMER__0COUNTRY_T" Type="Edm.String" MaxLength="20" sap:label="Country (Description)" sap:creatable="false" sap:updatable="false" sap:filterable="false"/>
+                <Property Name="A0MATERIAL" Type="Edm.String" MaxLength="18" sap:aggregation-role="dimension" sap:text="A0MATERIAL_T" sap:label="Material" sap:creatable="false" sap:updatable="false"/>
+                <Property Name="A0MATERIAL_T" Type="Edm.String" MaxLength="40" sap:label="Material (Description)" sap:creatable="false" sap:updatable="false" sap:filterable="false"/>
+                <Property Name="A0SALESORG" Type="Edm.String" MaxLength="4" sap:aggregation-role="dimension" sap:text="A0SALESORG_T" sap:label="Sales Organization" sap:creatable="false" sap:updatable="false"/>
+                <Property Name="A0SALESORG_T" Type="Edm.String" MaxLength="1333" sap:label="Sales Organization (Description)" sap:creatable="false" sap:updatable="false" sap:filterable="false"/>
+                <Property Name="A0CALMONTH" Type="Edm.String" MaxLength="6" sap:aggregation-role="dimension" sap:text="A0CALMONTH_T" sap:label="Cal. year / month" sap:creatable="false" sap:updatable="false" sap:semantics="yearmonth"/>
+                <Property Name="A0CALMONTH_T" Type="Edm.String" MaxLength="7" sap:label="Cal. year / month (Description)" sap:creatable="false" sap:updatable="false" sap:filterable="false"/>
+                <Property Name="A00A9WOD999QRTC2URLCON1G2V" Type="Edm.Decimal" Precision="42" Scale="7" sap:aggregation-role="measure" sap:filterable="false" sap:text="A00A9WOD999QRTC2URLCON1G2V_F" sap:updatable="false" sap:label="Ordered boxes" sap:creatable="false"/>
+                <Property Name="A00A9WOD999QRTC2URLCON1G2V_F" Type="Edm.String" MaxLength="60" sap:label="Ordered boxes (Formatted)" sap:creatable="false" sap:updatable="false" sap:filterable="false"/>
+                <Property Name="CAJ_ENTREG_NEW_G" Type="Edm.Decimal" Precision="42" Scale="7" sap:aggregation-role="measure" sap:filterable="false" sap:text="CAJ_ENTREG_NEW_G_F" sap:updatable="false" sap:label="Deliveried boxes" sap:creatable="false"/>
+                <Property Name="CAJ_ENTREG_NEW_G_F" Type="Edm.String" MaxLength="60" sap:label="Deliveried boxes (Formatted)" sap:creatable="false" sap:updatable="false" sap:filterable="false"/>
+            </EntityType>
+            <EntityType Name="ODataQueryAdditionalMetadata" sap:content-version="1">
+                <Key>
+                    <PropertyRef Name="ODataQueryMetadata"/>
+                </Key>
+                <Property Name="ODataQueryMetadata" Type="Edm.String" Nullable="false" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+                <Property Name="ODataQueryMetadataValue_Current" Type="Edm.String" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+                <Property Name="ODataQueryMetadataValueAtDefine" Type="Edm.String" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+            </EntityType>
+            <EntityContainer Name="ZBTP_SU09_SRV_Entities" m:IsDefaultEntityContainer="true" sap:supported-formats="atom json xlsx">
+                <EntitySet Name="ZBTP_SU09Results" EntityType="ZBTP_SU09_SRV.ZBTP_SU09Result" sap:creatable="false" sap:updatable="false" sap:deletable="false" sap:content-version="1"/>
+                <EntitySet Name="AdditionalMetadata" EntityType="ZBTP_SU09_SRV.ODataQueryAdditionalMetadata" sap:creatable="false" sap:updatable="false" sap:deletable="false" sap:content-version="1"/>
+            </EntityContainer>
+            <atom:link rel="self" href="https://bhd.puig.es:8233/sap/opu/odata/sap/ZBTP_SU09_SRV/$metadata"
+                xmlns:atom="http://www.w3.org/2005/Atom"/>
+                <atom:link rel="latest-version" href="https://bhd.puig.es:8233/sap/opu/odata/sap/ZBTP_SU09_SRV/$metadata"
+                    xmlns:atom="http://www.w3.org/2005/Atom"/>
+                </Schema>
+            </edmx:DataServices>
+        </edmx:Edmx>

@@ -1,0 +1,37 @@
+_schema-version: '3.1'
+ID: engine_generator.dev
+extends: engine_generator
+
+resources:
+  - name: engine_generator-dest
+    parameters:
+      config:
+        HTML5Runtime_enabled: True
+        init_data:
+          subaccount:
+            destinations:
+              - Authentication: NoAuthentication
+                Name: ui5
+                ProxyType: Internet
+                Type: HTTP
+                URL: https://ui5.sap.com
+              - Authentication: OAuth2UserTokenExchange
+                Name: DEST_ENGINE_GENERATOR
+                Type: HTTP
+                ProxyType: Internet
+                tokenServiceURL: https://cf-devqas-ibp.authentication.eu10.hana.ondemand.com/oauth/token
+                tokenServiceURLType: Dedicated
+                clientId: sb-engine_generator-uaa!t443556
+                clientSecret: MXUeVtpeRltUTFbSf61pbdMdvVk=
+                URL: https://engine-generator-srv-dev.cfapps.eu10-004.hana.ondemand.com
+                Description: "Engine Generator"
+                URL.headers.AI-Resource-Group: default
+                URL.headers.Content-Type: application/json
+                HTML5.DynamicDestination: True
+                WebIDEUsage: odata_gen
+                WebIDEEnabled: True
+                HTML5.Timeout: 300000
+
+            # fail | ignore  | update
+            existing_destinations_policy : update
+        version: 1.0.0

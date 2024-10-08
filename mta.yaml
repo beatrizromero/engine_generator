@@ -1,0 +1,69 @@
+_schema-version: "3.1"
+ID: engine_generator
+description: "IBP BTP"
+version: 1.0.0
+parameters:
+  enable-parallel-deployments: true
+build-parameters:
+  before-all:
+    - builder: custom
+      commands:
+        - npx cds build --production
+modules:
+- name: engine_generator-srv
+  type: nodejs
+  path: gen/srv
+  parameters:
+    buildpack: nodejs_buildpack
+    host: engine-generator-srv-dev
+  provides:
+  - name: srv-api
+    properties:
+      srv-url: ${default-url}
+  build-parameters:
+    builder: npm
+  requires:
+    - name: engine_generator-db
+    - name: engine_generator-xsuaa-service
+    - name: engine_generator-dest
+    - name: engine_generator-conn
+
+- name: engine_generator-db-deployer
+  type: hdb
+  path: db
+  parameters:
+    buildpack: nodejs_buildpack
+  requires:
+    - name: engine_generator-db
+    - name: engine_generator-xsuaa-service
+
+resources:
+# ------------------------------------------------------------
+- name: engine_generator-db
+  type: com.sap.xs.hdi-container
+  parameters:
+    service: hana
+    service-plan: hdi-shared
+
+# ------------------------------------------------------------
+- name: engine_generator-xsuaa-service
+  type: org.cloudfoundry.managed-service
+  parameters:
+    path: ./xs-security.json
+    service: xsuaa
+    service-plan: application
+
+# ------------------------------------------------------------
+- name: engine_generator-dest
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: destination
+    service-plan: lite
+
+# ------------------------------------------------------------
+- name: engine_generator-conn
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: connectivity
+    service-plan: lite
+

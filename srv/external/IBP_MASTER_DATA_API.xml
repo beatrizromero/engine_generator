@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="1.0"
+    xmlns:edmx="http://schemas.microsoft.com/ado/2007/06/edmx"
+    xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata"
+    xmlns:sap="http://www.sap.com/Protocols/SAPData">
+    <edmx:Reference Uri="https://my300115-api.scmibp1.ondemand.com/sap/opu/odata/iwfnd/catalogservice;v=2/Vocabularies(TechnicalName='%2FIWBEP%2FVOC_COMMON',Version='0001',SAP__Origin='LOCAL')/$value"
+        xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
+        <edmx:Include Namespace="com.sap.vocabularies.Common.v1" Alias="Common"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="https://my300115-api.scmibp1.ondemand.com/sap/opu/odata/iwfnd/catalogservice;v=2/Vocabularies(TechnicalName='%2FIWBEP%2FVOC_ODM',Version='0001',SAP__Origin='LOCAL')/$value"
+        xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
+        <edmx:Include Namespace="com.sap.vocabularies.ODM.v1" Alias="SAP__ODM"/>
+    </edmx:Reference>
+    <edmx:DataServices m:DataServiceVersion="2.0">
+        <Schema Namespace="IBP.MASTER_DATA_API_SRV" xml:lang="en" sap:schema-version="1"
+            xmlns="http://schemas.microsoft.com/ado/2008/09/edm">
+            <EntityType Name="ValueResult" sap:content-version="1">
+                <Key>
+                    <PropertyRef Name="Name"/>
+                </Key>
+                <Property Name="Name" Type="Edm.String" Nullable="false" sap:unicode="false" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+                <Property Name="Value" Type="Edm.String" Nullable="false" sap:unicode="false" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+            </EntityType>
+            <EntityType Name="VersionSpecificMasterDataTypes" sap:content-version="1">
+                <Key>
+                    <PropertyRef Name="PlanningAreaID"/>
+                    <PropertyRef Name="VersionID"/>
+                    <PropertyRef Name="MasterDataTypeID"/>
+                </Key>
+                <Property Name="PlanningAreaID" Type="Edm.String" Nullable="false" MaxLength="10" sap:unicode="false" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+                <Property Name="VersionID" Type="Edm.String" Nullable="false" MaxLength="10" sap:unicode="false" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+                <Property Name="MasterDataTypeID" Type="Edm.String" Nullable="false" MaxLength="32" sap:unicode="false" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+                <Property Name="PlanningAreaDescr" Type="Edm.String" Nullable="false" MaxLength="250" sap:unicode="false" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+                <Property Name="VersionName" Type="Edm.String" Nullable="false" MaxLength="64" sap:unicode="false" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+            </EntityType>
+            <EntityType Name="DT1PRODUCTDEMANDGROUP" sap:configuration-type="Compound" sap:content-version="1">
+                <Key>
+                    <PropertyRef Name="ZDEMANDGROUPID"/>
+                    <PropertyRef Name="PRDID"/>
+                </Key>
+                <Property Name="ZLOCALABCHUBID" Type="Edm.String" MaxLength="3" sap:label="Local ABC Hub Code"/>
+                <Property Name="ZLOCALSEGMHUBID" Type="Edm.String" MaxLength="3" sap:label="Local Segment Hub Code"/>
+                <Property Name="ZENRICHMENTFLAGID" Type="Edm.String" MaxLength="12" sap:label="Enrichment Flag Hub Code"/>
+                <Property Name="ZENRICHMENTFLAGDESCR" Type="Edm.String" MaxLength="120" sap:label="Enrichment Flag Hub Desc"/>
+                <Property Name="ZLOCALXYZID" Type="Edm.String" MaxLength="3" sap:label="Local XYZ Hub Code"/>
+                <Property Name="ZTOPDGBRAND" Type="Edm.String" MaxLength="20" sap:label="Top100-50 DG Brand"/>
+                <Property Name="ZRANKDG" Type="Edm.Int32" sap:label="Ranking DG"/>
+                <Property Name="ZRANKDGSEGMENTATION" Type="Edm.Int32" sap:label="Ranking DG Segmentation"/>
+                <Property Name="ZRANKDGSEGMENTBRAND" Type="Edm.Int32" sap:label="Ranking DG Segmentation Brand"/>
+                <Property Name="ZTOPDGSEGMENTATION" Type="Edm.String" MaxLength="20" sap:label="TOP100-50 DG Segmentation"/>
+                <Property Name="ZTOPDGSEGMENTBRAND" Type="Edm.String" MaxLength="20" sap:label="TOP100-50 DG Segmentation Brand"/>
+                <Property Name="ZLCFORECAST" Type="Edm.DateTime" Precision="0" sap:label="Life Cycle Forecast Start"/>
+                <Property Name="ZLCPHASEIN" Type="Edm.DateTime" Precision="0" sap:label="Life Cycle PhaseIn"/>
+                <Property Name="ZLCPHASEOUT" Type="Edm.DateTime" Precision="0" sap:label="Life Cycle PhaseOut"/>
+                <Property Name="ZCARRYENDDATE" Type="Edm.DateTime" Precision="0" sap:label="Carry Over End Date"/>
+                <Property Name="ZCARRYSTARTDATE" Type="Edm.DateTime" Precision="0" sap:label="Carry Over Start Date"/>
+                <Property Name="ZCARRYSW" Type="Edm.String" MaxLength="1" sap:label="Carry Over"/>
+                <Property Name="ZDISAGG" Type="Edm.String" MaxLength="1" sap:label="Disaggregation"/>
+                <Property Name="ZFASTTRACKDEMAND" Type="Edm.String" MaxLength="1" sap:label="Fast Track Demand"/>
+                <Property Name="ZLOCALABCIBPID" Type="Edm.String" MaxLength="1" sap:label="Local ABC IBP Code"/>
+                <Property Name="ZLOCALABCID" Type="Edm.String" MaxLength="3" sap:label="Local ABC ID"/>
+                <Property Name="ZLOCALABCLOCKED" Type="Edm.String" MaxLength="1" sap:label="Local ABC Locked"/>
+                <Property Name="ZLOCALPROMO" Type="Edm.String" MaxLength="1" sap:label="Local Promo"/>
+                <Property Name="ZLOCALXYZLOCKED" Type="Edm.String" MaxLength="1" sap:label="Local XYZ Locked"/>
+                <Property Name="ZPRODUCTFALOCAL" Type="Edm.String" MaxLength="18" sap:label="Product for FA Local"/>
+                <Property Name="ZPURGEFLAGPRODDG" Type="Edm.String" MaxLength="1" sap:label="Purge Flag Prod DG"/>
+                <Property Name="ZSALESSTATUSDATE" Type="Edm.DateTime" Precision="0" sap:label="Sales Status Date"/>
+                <Property Name="ZTIMESERIESPROPERTY" Type="Edm.String" MaxLength="120" sap:label="Forecast Model"/>
+                <Property Name="ZTOPDG" Type="Edm.String" MaxLength="20" sap:label="TOP100-50 DG"/>
+                <Property Name="ZPRODUCTDG" Type="Edm.String" MaxLength="25" sap:label="Product ID &amp; Demand Group"/>
+                <Property Name="ZEDITHORIZONSTART" Type="Edm.Int32" sap:label="Start Edit Horizon"/>
+                <Property Name="ZEDITHORIZONEND" Type="Edm.Int32" sap:label="End Edit Horizon"/>
+                <Property Name="ZPRDREPACKLOCAL" Type="Edm.String" MaxLength="40" sap:label="Main Product ID Local"/>
+                <Property Name="ZRANKDGBRAND" Type="Edm.Int32" sap:label="Ranking DG Brand"/>
+                <Property Name="ZFCSTTESTERPCTIND" Type="Edm.Decimal" Precision="18" Scale="6" sap:label="Fcst Tester PCT Ind"/>
+                <Property Name="ZLOCALABCBRAND" Type="Edm.String" MaxLength="1" sap:label="Local ABC Segment-Brand ID"/>
+                <Property Name="ZTIMESERIESPROPERTYMP" Type="Edm.String" MaxLength="120" sap:label="Forecast Model Main Product DG"/>
+                <Property Name="ZDEMANDGROUPID" Type="Edm.String" Nullable="false" MaxLength="10" sap:label="Demand Group ID"/>
+                <Property Name="PRDID" Type="Edm.String" Nullable="false" MaxLength="40" sap:label="Product ID"/>
+                <Property Name="CREATEDDATE" Type="Edm.DateTimeOffset" Precision="0" sap:label="Creation Date"/>
+                <Property Name="LASTMODIFIEDDATE" Type="Edm.DateTimeOffset" Precision="0" sap:label="Last Modified Date"/>
+            </EntityType>
+            <EntityType Name="DT1PRODUCTDEMANDGROUPTrans" sap:content-version="1">
+                <Key>
+                    <PropertyRef Name="TransactionID"/>
+                </Key>
+                <Property Name="TransactionID" Type="Edm.String" Nullable="false"/>
+                <Property Name="TransactionName" Type="Edm.String" MaxLength="60"/>
+                <Property Name="DoCommit" Type="Edm.Boolean"/>
+                <Property Name="RequestedAttributes" Type="Edm.String"/>
+                <Property Name="DeleteEntries" Type="Edm.Boolean"/>
+                <NavigationProperty Name="NavDT1PRODUCTDEMANDGROUP" Relationship="IBP.MASTER_DATA_API_SRV.to_DT1PRODUCTDEMANDGROUP" FromRole="FromRole_to_DT1PRODUCTDEMANDGROUP" ToRole="ToRole_to_DT1PRODUCTDEMANDGROUP"/>
+            </EntityType>
+            <EntityType Name="DT1PRODUCTDEMANDGROUPMessage" sap:content-version="1">
+                <Key>
+                    <PropertyRef Name="TransactionID"/>
+                    <PropertyRef Name="MessageID"/>
+                </Key>
+                <Property Name="TransactionID" Type="Edm.String" Nullable="false"/>
+                <Property Name="MessageID" Type="Edm.String" Nullable="false"/>
+                <Property Name="MessageText" Type="Edm.String"/>
+                <NavigationProperty Name="NavDT1PRODUCTDEMANDGROUP" Relationship="IBP.MASTER_DATA_API_SRV.to_DT1PRODUCTDEMANDGROUPMessage" FromRole="FromRole_to_DT1PRODUCTDEMANDGROUPMessage" ToRole="ToRole_to_DT1PRODUCTDEMANDGROUPMessage"/>
+            </EntityType>
+            <Association Name="to_DT1PRODUCTDEMANDGROUP" sap:content-version="1">
+                <End Type="IBP.MASTER_DATA_API_SRV.DT1PRODUCTDEMANDGROUPTrans" Multiplicity="1" Role="FromRole_to_DT1PRODUCTDEMANDGROUP"/>
+                <End Type="IBP.MASTER_DATA_API_SRV.DT1PRODUCTDEMANDGROUP" Multiplicity="*" Role="ToRole_to_DT1PRODUCTDEMANDGROUP"/>
+            </Association>
+            <Association Name="to_DT1PRODUCTDEMANDGROUPMessage" sap:content-version="1">
+                <End Type="IBP.MASTER_DATA_API_SRV.DT1PRODUCTDEMANDGROUPMessage" Multiplicity="1" Role="FromRole_to_DT1PRODUCTDEMANDGROUPMessage"/>
+                <End Type="IBP.MASTER_DATA_API_SRV.DT1PRODUCTDEMANDGROUP" Multiplicity="1" Role="ToRole_to_DT1PRODUCTDEMANDGROUPMessage"/>
+            </Association>
+            <EntityContainer Name="IBP_MASTER_DATA_API_SRV_Entities" m:IsDefaultEntityContainer="true" sap:supported-formats="atom json xlsx">
+                <EntitySet Name="DT1PRODUCTDEMANDGROUPMessage" EntityType="IBP.MASTER_DATA_API_SRV.DT1PRODUCTDEMANDGROUPMessage" sap:requires-filter="true" sap:content-version="1"/>
+                <EntitySet Name="ValueResultSet" EntityType="IBP.MASTER_DATA_API_SRV.ValueResult" sap:creatable="false" sap:updatable="false" sap:deletable="false" sap:pageable="false" sap:addressable="false" sap:content-version="1"/>
+                <EntitySet Name="VersionSpecificMasterDataTypes" EntityType="IBP.MASTER_DATA_API_SRV.VersionSpecificMasterDataTypes" sap:creatable="false" sap:updatable="false" sap:deletable="false" sap:pageable="false" sap:addressable="false" sap:content-version="1"/>
+                <EntitySet Name="DT1PRODUCTDEMANDGROUP" EntityType="IBP.MASTER_DATA_API_SRV.DT1PRODUCTDEMANDGROUP" sap:content-version="1"/>
+                <EntitySet Name="DT1PRODUCTDEMANDGROUPTrans" EntityType="IBP.MASTER_DATA_API_SRV.DT1PRODUCTDEMANDGROUPTrans" sap:content-version="1"/>
+                <AssociationSet Name="to_DT1PRODUCTDEMANDGROUPMessageSet" Association="IBP.MASTER_DATA_API_SRV.to_DT1PRODUCTDEMANDGROUPMessage" sap:creatable="false" sap:updatable="false" sap:deletable="false" sap:content-version="1">
+                    <End EntitySet="DT1PRODUCTDEMANDGROUPMessage" Role="FromRole_to_DT1PRODUCTDEMANDGROUPMessage"/>
+                    <End EntitySet="DT1PRODUCTDEMANDGROUP" Role="ToRole_to_DT1PRODUCTDEMANDGROUPMessage"/>
+                </AssociationSet>
+                <AssociationSet Name="to_DT1PRODUCTDEMANDGROUPSet" Association="IBP.MASTER_DATA_API_SRV.to_DT1PRODUCTDEMANDGROUP" sap:creatable="false" sap:updatable="false" sap:deletable="false" sap:content-version="1">
+                    <End EntitySet="DT1PRODUCTDEMANDGROUPTrans" Role="FromRole_to_DT1PRODUCTDEMANDGROUP"/>
+                    <End EntitySet="DT1PRODUCTDEMANDGROUP" Role="ToRole_to_DT1PRODUCTDEMANDGROUP"/>
+                </AssociationSet>
+                <FunctionImport Name="Commit" ReturnType="IBP.MASTER_DATA_API_SRV.ValueResult" EntitySet="ValueResultSet" m:HttpMethod="POST">
+                    <Parameter Name="P_TransactionID" Type="Edm.String" Mode="In"/>
+                </FunctionImport>
+                <FunctionImport Name="GetExportResult" ReturnType="Collection(IBP.MASTER_DATA_API_SRV.ValueResult)" EntitySet="ValueResultSet" m:HttpMethod="GET">
+                    <Parameter Name="P_TransactionID" Type="Edm.String" Mode="In"/>
+                </FunctionImport>
+                <FunctionImport Name="GetTransactionID" ReturnType="IBP.MASTER_DATA_API_SRV.ValueResult" EntitySet="ValueResultSet" m:HttpMethod="GET"/>
+                <FunctionImport Name="InitiateParallelProcess" ReturnType="IBP.MASTER_DATA_API_SRV.ValueResult" EntitySet="ValueResultSet" m:HttpMethod="POST">
+                    <Parameter Name="TransactionName" Type="Edm.String" Mode="In" MaxLength="60" Nullable="true"/>
+                    <Parameter Name="VersionID" Type="Edm.String" Mode="In"/>
+                    <Parameter Name="TransactionID" Type="Edm.String" Mode="In" MaxLength="32" sap:label="Transaction ID"/>
+                    <Parameter Name="MasterDataTypeID" Type="Edm.String" Mode="In" MaxLength="32"/>
+                    <Parameter Name="PlanningArea" Type="Edm.String" Mode="In"/>
+                </FunctionImport>
+            </EntityContainer>
+            <Annotation Term="Core.SchemaVersion" String="1.0.0"
+                xmlns="http://docs.oasis-open.org/odata/ns/edm"/>
+                <Annotations Target="IBP.MASTER_DATA_API_SRV.DT1PRODUCTDEMANDGROUP/ZDEMANDGROUPID"
+                    xmlns="http://docs.oasis-open.org/odata/ns/edm">
+                    <Annotation Term="Common.FieldControl" EnumMember="Common.FieldControlType/Mandatory"/>
+                </Annotations>
+                <Annotations Target="IBP.MASTER_DATA_API_SRV.DT1PRODUCTDEMANDGROUP/PRDID"
+                    xmlns="http://docs.oasis-open.org/odata/ns/edm">
+                    <Annotation Term="Common.FieldControl" EnumMember="Common.FieldControlType/Mandatory"/>
+                </Annotations>
+                <Annotations Target="IBP.MASTER_DATA_API_SRV.IBP_MASTER_DATA_API_SRV_Entities"
+                    xmlns="http://docs.oasis-open.org/odata/ns/edm"/>
+                    <atom:link rel="self" href="https://my300115-api.scmibp1.ondemand.com/sap/opu/odata/IBP/MASTER_DATA_API_SRV/$metadata"
+                        xmlns:atom="http://www.w3.org/2005/Atom"/>
+                        <atom:link rel="latest-version" href="https://my300115-api.scmibp1.ondemand.com/sap/opu/odata/IBP/MASTER_DATA_API_SRV/$metadata"
+                            xmlns:atom="http://www.w3.org/2005/Atom"/>
+                        </Schema>
+                    </edmx:DataServices>
+                </edmx:Edmx>
